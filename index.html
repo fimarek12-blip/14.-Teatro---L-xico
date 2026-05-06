@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <title>Vocabulario Avanzado - Clase</title>
+    
+    <style>
+        :root { --p: #2c3e50; --a: #3498db; --bg: #f4f7f6; --ok: #27ae60; --bad: #e74c3c; }
+        
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            background: var(--bg); 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            min-height: 100vh; 
+            margin: 0; 
+            padding: 20px 0;
+            box-sizing: border-box;
+            overflow-x: hidden;
+        }
+
+        /* Título centrado */
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.8rem;
+            text-align: center;
+        }
+
+        /* Botones para cambiar entre filas */
+        .row-selector {
+            display: flex;
+            gap: 10px;
+            width: 90vw;
+            max-width: 450px;
+            margin-bottom: 15px;
+        }
+
+        .row-btn {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid var(--p);
+            border-radius: 10px;
+            background: white;
+            color: var(--p);
+            font-weight: bold;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .row-btn.active {
+            background: var(--p);
+            color: white;
+        }
+
+        .card-container { 
+            perspective: 1000px; 
+            width: 90vw; 
+            max-width: 450px; 
+            height: 300px; 
+            cursor: pointer;
+            touch-action: manipulation; 
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .card { 
+            width: 100%; 
+            height: 100%; 
+            position: relative; 
+            transition: transform 0.4s; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1); 
+            border-radius: 15px;
+            transform-style: preserve-3d;
+            -webkit-transform-style: preserve-3d;
+        }
+
+        .card.flipped { transform: rotateY(180deg); }
+
+        .face { 
+            position: absolute; 
+            width: 100%; 
+            height: 100%; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            padding: 25px; 
+            box-sizing: border-box; 
+            border-radius: 15px; 
+            text-align: center; 
+            font-size: 1.4rem;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+
+        .front { background: white; color: var(--p); font-weight: bold; border: 2px solid #ddd; }
+        .back { background: var(--a); color: white; transform: rotateY(180deg); font-size: 1.2rem; }
+
+        .controls { 
+            margin-top: 15px;
+            display: flex; 
+            gap: 10px; 
+            width: 90vw; 
+            max-width: 450px;
+        }
+
+        .action-controls {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+            width: 90vw;
+            max-width: 450px;
+        }
+
+        button { 
+            flex: 1; 
+            padding: 15px 10px; 
+            border: none; 
+            border-radius: 12px; 
+            background: var(--p); 
+            color: white; 
+            font-size: 1rem; 
+            font-weight: bold;
+            cursor: pointer;
+            touch-action: manipulation; 
+        }
+
+        .btn-know { background: var(--ok); }
+        .btn-dont-know { background: var(--bad); }
+
+        .info { margin-top: 12px; font-weight: bold; color: #7f8c8d; }
+
+        @media (max-height: 600px) {
+            .card-container { height: 220px; }
+            .face { font-size: 1.1rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Teatro</h1>
+
+    <div class="row-selector">
+        <button class="row-btn active" id="btn-fila-no" onclick="setFila('no')">Por aprender (<span id="count-no">0</span>)</button>
+        <button class="row-btn" id="btn-fila-si" onclick="setFila('si')">Ya aprendidas (<span id="count-si">0</span>)</button>
+    </div>
+
+    <div class="card-container" onclick="flip()">
+        <div class="card" id="c">
+            <div class="face front" id="q">Cargando...</div>
+            <div class="face back" id="a">...</div>
+        </div>
+    </div>
+
+    <div class="info" id="status">0 / 0</div>
+
+    <div class="controls">
+        <button onclick="prev()">⬅ Ant.</button>
+        <button onclick="shuffle()">🔀 Mezclar</button>
+        <button onclick="next()">Sig. ➡</button>
+    </div>
+
+    <div class="action-controls" id="eval-controls">
+        <button class="btn-dont-know" onclick="clasificarPalabra(false)">❌ No la sé</button>
+        <button class="btn-know" onclick="clasificarPalabra(true)">✔ Ya la sé</button>
+    </div>
+
+<script>
+    // Tu lista original de palabras del archivo de Naturaleza
+    const todasLasPalabras = [
+        
+	{q: "teatro, m. clásico", a: "klasické divadlo"},
+	{q: "teatro, m. moderno", a: "moderní divadlo"},
+	{q: "teatro, m. de cámara", a: "komorní divadlo"},
+	{q: "teatro, m. de vanguardia", a: "avantgardní divadlo"},
+	{q: "teatro, m. experimental/de ensayo", a: "experimentální divadlo"},
+	{q: "teatro, m. del absurdo", a: "absurdní divadlo, absurdní drama"},
+	{q: "teatro, m. de títeres", a: "loutkové divadlo"},
+	{q: "teatro, m. de marionetas", a: "loutkové divadlo (na provázku)"},
+	{q: "teatro, m. de guiñol", a: "maňáskové divadlo"},
+	{q: "teatro, m. de sombras", a: "stínové divadlo"},
+	{q: "teatro, m. de variedades", a: "varieté, varietní divadlo"},
+	{q: "teatro, m. independiente", a: "nezávislé divadlo"},
+	{q: "teatro, m. universitario", a: "univerzitní divadlo"},
+	{q: "teatro, m. ambulante", a: "kočovné divadlo"},
+	{q: "teatro, m./compañía, f. profesional x no profesional/de aficionados/amateur,", a: "profesionální x amatérské divadlo"},
+	{q: "compañía, f., de teatro nacional, internacional", a: "národní divadelní společnost, mezinárodní divadelní společnost"},
+	{q: "vodevil, m.", a: "fraška, vaudeville"},
+	{q: "pantomima, f.", a: "pantomima"},
+	{q: "mimo, m.", a: "mim"},
+	{q: "ópera, f.", a: "opera"},
+	{q: "opereta, f.", a: "opereta"},
+	{q: "zarzuela, f.", a: "typ španělské lidové operety"},
+	{q: "musical, m.", a: "muzikál"},
+	{q: "ballet, m.", a: "balet"},
+	{q: "bailarina, f.", a: "tanečnice"},
+	{q: "bailarín, m. x bailaor/-a, m. y f.", a: "tanečník x tanečník flamenca"},
+	{q: "obra, f./pieza, f., de teatro/teatral", a: "divadelní hra, divadelní dílo"},
+	{q: "drama, m.", a: "drama"},
+	{q: "comedia, f.", a: "komedie"},
+	{q: "tragedia, f.", a: "tragédie"},
+	{q: "tragicomedia, f.", a: "tragikomedie"},
+	{q: "sainete, m.", a: "burleska, fraška"},
+	{q: "farsa, f.", a: "fraška"},
+	{q: "melodrama, m.", a: "melodramat"},
+	{q: "teatro, m. breve/piezas, pl.f. cortas", a: "jednoaktovky, krátké divadelní hry"},
+	{q: "género, m. chico", a: "malý žánr"},
+	{q: "vestíbulo, m.", a: "foyer, divadelní hala"},
+	{q: "guardarropa, m. x guardarropa, m. y f.", a: "šatna x šatnář/ka"},
+	{q: "sala, f.", a: "sál"},
+	{q: "acomodador, m.", a: "uvaděč/ka"},
+	{q: "butaca, f. de la platea/ del patio", a: "místo v přízemí"},
+	{q: "butaca, f. del palco", a: "sedadlo v lóži"},
+	{q: "gallinero, m./paraíso, m.", a: "bidýlko, poslední galerie, nejvyšší patro v divadle"},
+	{q: "auditorio, m.", a: "hlediště"},
+	{q: "escenario, m.", a: "jeviště"},
+	{q: "tarima, f.", a: "pódium"},
+	{q: "cafetería, f. del teatro", a: "divadelní kavárna"},
+	{q: "gemelos, pl. m.", a: "kukátka"},
+	{q: "programa, m.", a: "program"},
+	{q: "echar una ojeada/un vistazo a la cartelera", a: "podívat se na divadelní program"},
+	{q: "echar/dar una obra de teatro", a: "dávat divadelní představení"},
+	{q: "hacer cola para comprar una entrada, un boleto", a: "stát řadu na lístek do divadla"},
+	{q: "precio, m. de la entrada", a: "cena vstupenky/lísku"},
+	{q: "reducción, f. de precio/precio, m. reducido por ser estudiante, jubilado", a: "sleva pro studenty/penzisty"},
+	{q: "sacar una entrada", a: "koupit lístek do divadla"},
+	{q: "localidad, f.", a: "sedadlo, místo"},
+	{q: "taquilla, f.", a: "pokladna"},
+	{q: "No hay entradas.", a: "nejsou vstupenky"},
+	{q: "Las localidades están agotadas.", a: "všechna mista jsou obsazena"},
+	{q: "estar abonado/tener un abono", a: "mít divadelní předplatné"},
+	{q: "ser un espectador regular", a: "být pravidelným divákem"},
+	{q: "representación, f./función, f./espectáculo, m.", a: "divadelní představení"},
+	{q: "acto, m.", a: "dějství, jednání"},
+	{q: "escena, f./cuadro, m.", a: "scéna"},
+	{q: "entremés, m.", a: "mezihra"},
+	{q: "texto, m.", a: "text"},
+	{q: "acotación, f.", a: "scénická poznámka"},
+	{q: "estructura, f. de la obra/ argumental", a: "struktura dramatického díla"},
+	{q: "presentación, f.", a: "představení"},
+	{q: "nudo, m.", a: "zápletka"},
+	{q: "desenlace, m.", a: "rozuzlení"},
+	{q: "argumento, m./trama, f.", a: "děj"},
+	{q: "tema, m.", a: "téma"},
+	{q: "motivo, m.", a: "motiv"},
+	{q: "pieza, f. de teatro de estreno", a: "premiéra divadelní hry"},
+	{q: "función, f. recién estrenada", a: "nově uvedená divadelní hra"},
+	{q: "la acción está situada en .../ tiene lugar en ...", a: "děj se odehrává v .../je umístěn v ..."},
+	{q: "la trama se desarrolla en los años 50", a: "děj se odehrává v 50. letech"},
+	{q: "es un final feliz x trágico", a: "konec je šťastný x tragický"},
+	{q: "es un final abierto (a la interpretación del espectador)", a: "konec je otevřený (možná interpretace diváka)"},
+	{q: "no tener final concreto", a: "nemít konkrétní konec"},
+	{q: "terminar bien x mal", a: "skončit dobře x špatně"},
+	{q: "el interés del público no decae/ se mantiene", a: "pozornost publika se neztrácí"},
+	{q: "mantener al espectador en vilo/ en tensión", a: "udržet diváka napjatého"},
+	{q: "la obra de teatro engancha/atrae al público", a: "divadelní hra přitahuje publikum"},
+	{q: "aplauso, m.", a: "potlesk"},
+	{q: "vítores, pl. m.", a: "jásot"},
+	{q: "ovación, f.", a: "ovace"},
+	{q: "aplaudir", a: "tleskat"},
+	{q: "vitorear", a: "jásat"},
+	{q: "ovacionar", a: "bouřlivě tleskat"},
+	{q: "el público aplaude vivamente", a: "publikum živě tleská"},
+	{q: "el público se pone de pie/se levanta a aplaudir", a: "publikum tleská ve stoje"},
+	{q: "el público da un rotundo aplauso", a: "publikum nadšeně a bouřlivě tleská"},
+	{q: "la pieza recibe un fuerte aplauso", a: "představení sklidí silný potlesk"},
+	{q: "* el teatro se venía abajo", a: "divadlo šílelo nadšením"},
+	{q: "* el público se volvía loco", a: "publikum v divadle šílelo"},
+	{q: "pieza, f. lenta", a: "pomalá hra"},
+	{q: "pieza, f. aburrida", a: "nudná hra"},
+	{q: "pieza, f. sin interés", a: "nezajímavá hra"},
+	{q: "abuchear", a: "bučet"},
+	{q: "silbar/chiflar,", a: "pískat"},
+	{q: "patear la representación", a: "vypískat představení"},
+	{q: "ser un (rotundo) fracaso/ desastre", a: "být katastrofa"},
+	{q: "fracasar completamente/rotundamente", a: "silně pohořet"},
+	{q: "tener un buen reparto", a: "mít dobré herecké obsazení"},
+	{q: "tener un magnífico reparto", a: "mít skvělé herecké obsazení"},
+	{q: "personaje, m. x persona, f. x personalidad, f.", a: "role x skutečná osoba x osobnost"},
+	{q: "caracterización, f. de los personajes", a: "charakteristika rolí"},
+	{q: "representar/desempeñar/hacer el papel de D. Juan", a: "ztvárnit roli D. Juana"},
+	{q: "interpretar el papel de D. Juan muy bien", a: "ztvárnit roli D. Juana velice dobře"},
+	{q: "interpretación, f. brillante/ magnífica,", a: "skvělé ztvárnění"},
+	{q: "interpretación, f. insuperable", a: "nepřekonatelné ztvárnění"},
+	{q: "interpretación, f. singular", a: "jediné ztvárnění"},
+	{q: "interpretación, f. sugestiva", a: "sugestiva ztvárnění"},
+	{q: "hacer/desempeñar el papel principal", a: "ztvárnit hlavní roli"},
+	{q: "protagonista, m.", a: "protagonista"},
+	{q: "papel, m. secundario", a: "vedlejší role"},
+	{q: "elenco, m.", a: "obsazení"},
+	{q: "encarnar un papel de manera convincente", a: "přesvědčivě obsadit roli"},
+	{q: "tener su primer(a) salida/debut, m./estreno, m.", a: "mít premiéru"},
+	{q: "estar nervioso/-a", a: "být nervózní"},
+	{q: "cambiar de traje en el vestuario", a: "převléknout se v šatně"},
+	{q: "maquillaje, m., maquillador/-a, m. y f.", a: "líčení, maskér/ka"},
+	{q: "camerino, m.", a: "šatna"},
+	{q: "concha, f. del apuntador", a: "nápovědní budka"},
+	{q: "apuntar a los actores en caso de olvido", a: "napovídat hercům v případě, že zapomenou"},
+	{q: "actor, m.", a: "herec"},
+	{q: "actriz, f.", a: "herečka"},
+	{q: "comediante, f., m.", a: "herec komedie"},
+	{q: "comparsa, f.", a: "komparz"},
+	{q: "hacer de comparsa", a: "dělat komparz"},
+	{q: "ser un buen actor trágico", a: "být dobrý herec tragédie"},
+	{q: "ser un buen actor cómico", a: "být dobrý herec komedie"},
+	{q: "aprender el texto", a: "naučit se text"},
+	{q: "ensayar", a: "zkoušet"},
+	{q: "ensayo, m.", a: "zkouška"},
+	{q: "ensayo, m. general", a: "generální zkouška"},
+	{q: "ensayo, m. de vestuario", a: "kostýmová zkouška"},
+	{q: "ensayar la letra/el texto", a: "zkoušet text"},
+	{q: "hacer un ensayo x hacer el ensayo general", a: "dělat zkoušku x dělat generální zkoušku"},
+	{q: "tener tablas", a: "mít zkušenosti"},
+	{q: "lucirse x lucir un vestido nuevo", a: "zazářit x nosit nové šaty"},
+	{q: "director, m.", a: "režisér"},
+	{q: "ofrecer una interpretación (nueva) de la pieza", a: "nabídnout nové ztvárnění divadelní hry"},
+	{q: "dirigir un drama", a: "režírovat drama"},
+	{q: "poner en escena", a: "inscenovat"},
+	{q: "representar x dramatizar", a: "hrát x zdramatizovat"},
+	{q: "puesta, f. en escena", a: "zinscenováno"},
+	{q: "escenógrafo, m.", a: "scénograf"},
+	{q: "iluminador", a: "osvětlovač"},
+	{q: "enfocar al protagonista", a: "zaměřit na protagonistu"},
+	{q: "foco, m.", a: "reflektor"},
+	{q: "decorador/-a, m.", a: "scénická výtvarnice"},
+	{q: "decorado, m. x decoración, f.", a: "scénografie x dekorace"},
+	{q: "hacer un cambio de decorados", a: "změnit scénografii"},
+	{q: "bastidores, pl.m.", a: "zákulisí"},
+	{q: "bambalina, f.", a: "sufita (předopona zakrývající technické zázemí"},
+	{q: "entre bastidores/bambalinas", a: "v zákulisí"},
+	{q: "tramoya, f.", a: "scénická technika"},
+	{q: "tramoyista, m.", a: "jevištní technik"},
+	{q: "preparar todos los accesorios", a: "připravit všechny doplňky"},
+	{q: "subir/levantar/izar x bajar/correr el telón", a: "roztáhnout, zvednout x zatáhnout, spustit oponu"},
+	{q: "** bailar el agua a alguien", a: "podlézat někomu"},
+	{q: "** no dejar títere con cabeza", a: "nenechat na nikom nit suchou"},
+	{q: "** bailar con la más fea", a: "zbýt na někoho něco negativního"},
+	{q: "** bailar/estar en la cuerda floja", a: "tančit na tenkém ledě"},
+	{q: "** que me, te, le etc. quiten lo bailado", a: "Co jsem prožil, to už mi nikdo nevezme. "},
+	{q: "** por obra y gracia de Dios/del Señor", a: "z Boží milosti"},
+	{q: "** ser, estar hecho una buena pieza", a: "být pěkný kvítek"},
+	{q: "** mucha mierda", a: "zlomit vaz"},
+	{q: "** tener canguelo", a: "mít nahnáno, mít strach"},
+	{q: "** tener pánico escénico", a: "mít trému"},
+	{q: "** estar muerto de miedo", a: "být k smrti vyděšený"},
+	{q: "** estar hecho polvo", a: "být zničený, být unavený"},
+	{q: "** quedarse en blanco", a: "mít okno"},
+	{q: "** se le fue el santo al cielo", a: "vypadnout z hlavy, ztratit nit"},
+	{q: "** hasta el apuntador", a: "všichni do jednoho"},
+	{q: "** ni el apuntador", a: "nezůstal tam ani živáček"},
+      
+	    ];
+
+    // Listas dinámicas para clasificar las palabras
+    let palabrasNoConozco = [...todasLasPalabras];
+    let palabrasYaConozco = [];
+
+    let filaActiva = 'no'; // 'no' (por aprender) o 'si' (ya aprendidas)
+    let idx = 0;
+
+    const cardEl = document.getElementById('c');
+    const qEl = document.getElementById('q');
+    const aEl = document.getElementById('a');
+    const sEl = document.getElementById('status');
+
+    function getListaActiva() {
+        return filaActiva === 'no' ? palabrasNoConozco : palabrasYaConozco;
+    }
+
+    function update() {
+        const lista = getListaActiva();
+        cardEl.classList.remove('flipped');
+        
+        // Actualizar contadores dinámicamente en las pestañas superiores
+        document.getElementById('count-no').innerText = palabrasNoConozco.length;
+        document.getElementById('count-si').innerText = palabrasYaConozco.length;
+
+        if (lista.length === 0) {
+            qEl.innerText = "¡Lista vacía!";
+            aEl.innerText = filaActiva === 'no' ? "¡Enhorabuena, has repasado todo!" : "No has añadido ninguna palabra aquí aún.";
+            sEl.innerText = "0 / 0";
+            return;
+        }
+
+        // Validación de límites del índice por si se vacían elementos
+        if (idx >= lista.length) {
+            idx = Math.max(0, lista.length - 1);
+        }
+
+        setTimeout(() => {
+            qEl.innerText = lista[idx].q;
+            aEl.innerText = lista[idx].a;
+            sEl.innerText = `${idx + 1} / ${lista.length}`;
+        }, 100);
+    }
+
+    function flip() { 
+        const lista = getListaActiva();
+        if (lista.length > 0) cardEl.classList.toggle('flipped'); 
+    }
+    
+    function next() { 
+        const lista = getListaActiva();
+        if(idx < lista.length - 1) { idx++; update(); } 
+    }
+    
+    function prev() { 
+        if(idx > 0) { idx--; update(); } 
+    }
+
+    function shuffle() {
+        const lista = getListaActiva();
+        if (lista.length > 0) {
+            lista.sort(() => Math.random() - 0.5);
+            idx = 0;
+            update();
+        }
+    }
+
+    // Cambiar la pestaña de la fila actual
+    function setFila(tipo) {
+        filaActiva = tipo;
+        idx = 0;
+        
+        if (tipo === 'no') {
+            document.getElementById('btn-fila-no').classList.add('active');
+            document.getElementById('btn-fila-si').classList.remove('active');
+        } else {
+            document.getElementById('btn-fila-no').classList.remove('active');
+            document.getElementById('btn-fila-si').classList.add('active');
+        }
+        
+        update();
+    }
+
+    // Clasificar las tarjetas entre aprendidas y por aprender
+    function clasificarPalabra(loSabe) {
+        let listaOrigen = filaActiva === 'no' ? palabrasNoConozco : palabrasYaConozco;
+        let listaDestino = filaActiva === 'no' ? palabrasYaConozco : palabrasNoConozco;
+
+        if (listaOrigen.length === 0) return;
+
+        // Si la clasificación no implica moverla a otra lista, simplemente avanza
+        if ((filaActiva === 'no' && !loSabe) || (filaActiva === 'si' && loSabe)) {
+            next();
+            return;
+        }
+
+        // Mover el elemento a la lista destino
+        const palabraMovida = listaOrigen.splice(idx, 1)[0];
+        listaDestino.push(palabraMovida);
+
+        update();
+    }
+
+    // Atajos de teclado para ordenador
+    document.addEventListener('keydown', (e) => {
+        if(e.code === 'ArrowRight') next();
+        if(e.code === 'ArrowLeft') prev();
+        if(e.code === 'Space') flip();
+    });
+
+    update();
+</script>
+</body>
+</html>
